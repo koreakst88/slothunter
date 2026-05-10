@@ -534,7 +534,9 @@ bot.action(/^skip_reschedule_(.+)$/, async (ctx) => {
 });
 
 export async function startBot(): Promise<void> {
-  bot.launch();
+  await bot.launch({
+    dropPendingUpdates: true
+  });
   console.log('[BOT] Telegram bot started');
   
   await bot.telegram.setMyCommands([

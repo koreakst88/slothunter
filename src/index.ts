@@ -9,10 +9,6 @@ const MAX_MINUTES = parseInt(process.env.CHECK_INTERVAL_MAX ?? '8', 10);
 
 let isRunning = false;
 
-console.log('[SLOTHUNTER] Bot started');
-console.log(`[SLOTHUNTER] MOCK_MODE: ${process.env.MOCK_MODE}`);
-console.log(`[SLOTHUNTER] Check interval: ${MIN_MINUTES}-${MAX_MINUTES} minutes`);
-
 async function executeCycle(withDelay: boolean) {
   if (isRunning) {
     return;
@@ -32,17 +28,29 @@ async function executeCycle(withDelay: boolean) {
   }
 }
 
-// Запустить первый цикл сразу при старте не дожидаясь cron
-executeCycle(false);
+async function main(): Promise<void> {
+  console.log('[SLOTHUNTER] Bot started');
+  console.log(`[SLOTHUNTER] MOCK_MODE: ${process.env.MOCK_MODE}`);
+  console.log(`[SLOTHUNTER] Check interval: ${MIN_MINUTES}-${MAX_MINUTES} minutes`);
 
-// Интервал: каждую минуту проверять — запускать цикл с рандомной задержкой
-cron.schedule('* * * * *', () => {
-  // Флаг isRunning защитит нас от наслоения циклов друг на друга.
-  // Первая вошедшая сюда минута запустит задержку на 5-8 минут, а остальные будут пропущены.
-  executeCycle(true);
+  await startBot();
+
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+  // Запустить первый цикл сразу при старте не дожидаясь cron
+  executeCycle(false);
+
+  // Интервал: каждую минуту проверять — запускать цикл с рандомной задержкой
+  cron.schedule('* * * * *', () => {
+    // Флаг isRunning защитит нас от наслоения циклов друг на друга.
+    // Первая вошедшая сюда минута запустит задержку на 5-8 минут, а остальные будут пропущены.
+    executeCycle(true);
+  });
+}
+
+main().catch((error: unknown) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[SLOTHUNTER] Failed to start: ${errorMessage}`);
+  process.exit(1);
 });
-
-startBot();
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
