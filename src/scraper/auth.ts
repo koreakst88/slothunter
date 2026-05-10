@@ -56,6 +56,18 @@ export async function login(
   const postResponseUrl = postResponse.request?.res?.responseUrl || 'unknown';
   console.log('[AUTH] POST response status:', postResponse.status);
   console.log('[AUTH] POST response URL:', postResponseUrl);
+  console.log(
+    '[AUTH] POST final URL:',
+    postResponse.request?.res?.responseUrl ||
+      postResponse.config?.url ||
+      'unknown'
+  );
+  console.log(
+    '[AUTH] POST response HTML:',
+    typeof postResponse.data === 'string'
+      ? postResponse.data.substring(0, 1000)
+      : JSON.stringify(postResponse.data).substring(0, 1000)
+  );
 
   // Шаг 3 — Проверка успешности
   const isSuccessfulStatus = [200, 201, 302].includes(postResponse.status);
