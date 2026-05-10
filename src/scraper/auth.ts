@@ -21,8 +21,8 @@ export async function login(
     throw new Error('Unexpected response format from login page');
   }
 
-  const initialCsrf = extractCsrfToken(getResponse.data);
-  if (!initialCsrf) {
+  const csrfToken = extractCsrfToken(getResponse.data);
+  if (!csrfToken) {
     throw new Error('CSRF token not found on login page');
   }
 
@@ -30,28 +30,41 @@ export async function login(
   await randomDelay(1000, 3000);
 
   // Шаг 2 — POST логин
-  const loginData = new URLSearchParams();
-  loginData.append('user[email]', email);
-  loginData.append('user[password]', password);
-  loginData.append('policy_confirmed', '1');
-  loginData.append('commit', 'Войти');
+  const params = new URLSearchParams();
+  params.append('user[email]', email);
+  params.append('user[password]', password);
+  params.append('policy_confirmed', '1');
+  params.append('commit', 'Войти');
 
-  const postResponse = await client.post('/ru-kz/niv/users/sign_in', loginData.toString(), {
+  const postUrl = `${baseUrl}/ru-kz/niv/users/sign_in`;
+  console.log('[AUTH] POST URL:', postUrl);
+  console.log('[AUTH] CSRF token used:', csrfToken.substring(0, 20));
+
+  const postResponse = await client.post(postUrl, params.toString(), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'X-CSRF-Token': initialCsrf,
-      'Referer': `${baseUrl}/ru-kz/niv/users/sign_in`
+      'X-CSRF-Token': csrfToken,
+      'Referer': 'https://ais.usvisa-info.com/ru-kz/niv/users/sign_in',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+      'Origin': 'https://ais.usvisa-info.com',
+      'X-Requested-With': 'XMLHttpRequest'
     },
-    // Разрешаем и 200, и 302 статусы
-    validateStatus: (status: number) => status === 200 || status === 302
+    validateStatus: (status: number) => status < 500
   });
 
+  const postResponseUrl = postResponse.request?.res?.responseUrl || 'unknown';
+  console.log('[AUTH] POST response status:', postResponse.status);
+  console.log('[AUTH] POST response URL:', postResponseUrl);
+
   // Шаг 3 — Проверка успешности
-  if (postResponse.status !== 200 && postResponse.status !== 302) {
+  const isSuccessfulStatus = [200, 201, 302].includes(postResponse.status);
+  const redirectedAwayFromSignIn = postResponseUrl !== 'unknown' && !postResponseUrl.includes('sign_in');
+  if (!isSuccessfulStatus && !redirectedAwayFromSignIn) {
     throw new Error('Login failed');
   }
 
-  let finalCsrf = initialCsrf;
+  let finalCsrf = csrfToken;
   if (typeof postResponse.data === 'string') {
     const freshCsrf = extractCsrfToken(postResponse.data);
     if (freshCsrf) {
