@@ -1,17 +1,61 @@
 import 'dotenv/config';
 import axios, { AxiosInstance } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
+import { createCookieAgent } from 'http-cookie-agent/http';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { CookieJar } from 'tough-cookie';
+
+const CookieHttpsProxyAgent = createCookieAgent(HttpsProxyAgent);
+let hasLoggedProxyConfiguration = false;
+
+function getProxyHost(proxyUrl: string): string {
+  const parsedUrl = new URL(proxyUrl);
+  return `${parsedUrl.hostname}${parsedUrl.port ? `:${parsedUrl.port}` : ''}`;
+}
+
+function logProxyConfiguration(proxyUrl: string | undefined): void {
+  if (hasLoggedProxyConfiguration) {
+    return;
+  }
+
+  if (proxyUrl) {
+    console.log(`[HTTP] Using proxy: ${getProxyHost(proxyUrl)}`);
+  } else {
+    console.log('[HTTP] No proxy configured — direct connection');
+  }
+
+  hasLoggedProxyConfiguration = true;
+}
 
 /**
  * Создаёт изолированный HTTP клиент с собственным хранилищем cookies (CookieJar).
  */
 export function createHttpClient(): AxiosInstance {
   const jar = new CookieJar();
+  const proxyUrl = process.env.PROXY_URL;
   const isMockMode = process.env.MOCK_MODE === 'true';
   const baseURL = isMockMode
     ? (process.env.MOCK_SERVER_URL ?? 'http://localhost:3001')
     : 'https://ais.usvisa-info.com';
+
+  logProxyConfiguration(proxyUrl);
+
+  if (proxyUrl) {
+    const agent = new CookieHttpsProxyAgent(proxyUrl, {
+      cookies: { jar },
+    });
+
+    return axios.create({
+      baseURL,
+      httpAgent: agent,
+      httpsAgent: agent,
+      proxy: false,
+      withCredentials: true,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36'
+      }
+    });
+  }
 
   const client = axios.create({
     baseURL,

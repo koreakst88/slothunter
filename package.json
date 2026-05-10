@@ -20,6 +20,8 @@
     "axios-cookiejar-support": "^5.0.0",
     "dotenv": "^16.4.0",
     "express": "^4.18.2",
+    "http-cookie-agent": "^6.0.8",
+    "https-proxy-agent": "^7.0.6",
     "node-cron": "^3.0.3",
     "telegraf": "^4.15.3",
     "tough-cookie": "^4.1.3",
