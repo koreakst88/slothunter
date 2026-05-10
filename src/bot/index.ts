@@ -187,13 +187,22 @@ export const bot = new Telegraf<MyContext>(token);
 bot.use(async (ctx, next) => {
   const allowedIds = process.env.ALLOWED_CHAT_IDS
     ?.split(',')
-    .map(id => id.trim())
-    .filter(Boolean) || [];
+    .map(id => id.trim()) || [];
 
-  const chatId = ctx.chat?.id?.toString();
+  // Получаем chat id из разных источников
+  const chatId = (
+    ctx.chat?.id ||
+    ctx.callbackQuery?.from?.id ||
+    ctx.from?.id
+  )?.toString();
+
+  console.log('[ACCESS] chat id:', chatId);
+  console.log('[ACCESS] allowed:', allowedIds);
 
   if (!chatId || !allowedIds.includes(chatId)) {
-    await ctx.reply('⛔️ Доступ запрещён.');
+    if (ctx.chat) {
+      await ctx.reply('⛔️ Доступ запрещён.');
+    }
     return;
   }
 
