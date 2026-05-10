@@ -3,10 +3,17 @@ import { Client } from '../monitor/checker';
 import { RescheduleResult } from '../scraper/reschedule';
 import { bot } from './index';
 
+function getAllowedChatIds(): string[] {
+  return process.env.ALLOWED_CHAT_IDS
+    ?.split(',')
+    .map(id => id.trim())
+    .filter(Boolean) || [];
+}
+
 export async function sendSuccessAlert(client: Client, result: RescheduleResult): Promise<void> {
-  const chatId = process.env.TELEGRAM_AGENT_CHAT_ID;
-  if (!chatId) {
-    console.error('[NOTIFY] TELEGRAM_AGENT_CHAT_ID is not set');
+  const allowedIds = getAllowedChatIds();
+  if (allowedIds.length === 0) {
+    console.error('[NOTIFY] ALLOWED_CHAT_IDS is not set');
     return;
   }
 
@@ -17,17 +24,19 @@ export async function sendSuccessAlert(client: Client, result: RescheduleResult)
     `🎯 Стало: ${result.date} в ${result.time || 'неизвестно'}\n\n` +
     `🔄 Осталось попыток: ${client.attempts_left - 1}/3`;
 
-  try {
-    await bot.telegram.sendMessage(chatId, message);
-  } catch (error) {
-    console.error('[NOTIFY] Error sending success alert:', error);
+  for (const chatId of allowedIds) {
+    try {
+      await bot.telegram.sendMessage(chatId, message);
+    } catch (error) {
+      console.error(`[NOTIFY] Error sending success alert to ${chatId}:`, error);
+    }
   }
 }
 
 export async function sendNotifyAlert(client: Client, dateFound: string): Promise<void> {
-  const chatId = process.env.TELEGRAM_AGENT_CHAT_ID;
-  if (!chatId) {
-    console.error('[NOTIFY] TELEGRAM_AGENT_CHAT_ID is not set');
+  const allowedIds = getAllowedChatIds();
+  if (allowedIds.length === 0) {
+    console.error('[NOTIFY] ALLOWED_CHAT_IDS is not set');
     return;
   }
 
@@ -44,9 +53,11 @@ export async function sendNotifyAlert(client: Client, dateFound: string): Promis
     Markup.button.callback('❌ Пропустить', `skip_reschedule_${client.id}`)
   ]);
 
-  try {
-    await bot.telegram.sendMessage(chatId, message, keyboard);
-  } catch (error) {
-    console.error('[NOTIFY] Error sending notify alert:', error);
+  for (const chatId of allowedIds) {
+    try {
+      await bot.telegram.sendMessage(chatId, message, keyboard);
+    } catch (error) {
+      console.error(`[NOTIFY] Error sending notify alert to ${chatId}:`, error);
+    }
   }
 }

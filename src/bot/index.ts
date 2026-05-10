@@ -16,6 +16,7 @@ interface WizardState {
   password_encrypted: string;
   scheduleId?: string;
   applicantIds?: string[];
+  attemptsLeft?: number;
 }
 
 interface MyWizardSession extends Scenes.WizardSessionData {}
@@ -105,12 +106,13 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
         `👤 Имя: ${state.name}\n` +
         `📧 Email: ${state.email}\n` +
         `🔑 Schedule ID: ${scheduleId}\n` +
-        `👥 Заявителей: ${finalIds.length}\n\n` +
-        `Сохранить клиента?`,
-        Markup.inlineKeyboard([
-          Markup.button.callback('✅ Да', 'save_yes'),
-          Markup.button.callback('❌ Отмена', 'save_no')
-        ])
+        `👥 Заявителей: ${finalIds.length}`
+      );
+
+      await ctx.reply(
+        'Сколько попыток переноса осталось у клиента?\n' +
+        'Проверьте на сайте ais.usvisa-info.com\n' +
+        'Введите число от 1 до 3:'
       );
       
       return ctx.wizard.next();
@@ -120,6 +122,35 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
       await ctx.reply('❌ Ошибка входа. Проверьте email и пароль.');
       return ctx.scene.leave();
     }
+  },
+  async (ctx) => {
+    const state = ctx.wizard.state as unknown as WizardState;
+    if (!ctx.message || !('text' in ctx.message)) return;
+
+    const attemptsText = ctx.message.text.trim();
+    if (!/^[1-3]$/.test(attemptsText)) {
+      await ctx.reply('❌ Введите число от 1 до 3');
+      return;
+    }
+
+    const attemptsLeft = Number.parseInt(attemptsText, 10);
+    state.attemptsLeft = attemptsLeft;
+
+    await ctx.reply(
+      `✅ Данные получены!\n\n` +
+      `👤 Имя: ${state.name}\n` +
+      `📧 Email: ${state.email}\n` +
+      `🔑 Schedule ID: ${state.scheduleId}\n` +
+      `👥 Заявителей: ${state.applicantIds?.length ?? 0}\n` +
+      `🔄 Попытки: ${attemptsLeft}/3\n\n` +
+      `Сохранить клиента?`,
+      Markup.inlineKeyboard([
+        Markup.button.callback('✅ Да', 'save_yes'),
+        Markup.button.callback('❌ Отмена', 'save_no')
+      ])
+    );
+
+    return ctx.wizard.next();
   },
   async (ctx) => {
     if (ctx.callbackQuery && 'data' in ctx.callbackQuery) {
@@ -134,7 +165,7 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
             applicant_ids: state.applicantIds!,
             current_date: '2099-01-01',
             status: 'active',
-            attempts_left: 3
+            attempts_left: state.attemptsLeft!
           });
           await ctx.editMessageText(`✅ Клиент ${state.name} добавлен!\nМониторинг запущен автоматически.`);
         } catch (error) {
@@ -152,6 +183,22 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
 );
 
 export const bot = new Telegraf<MyContext>(token);
+
+bot.use(async (ctx, next) => {
+  const allowedIds = process.env.ALLOWED_CHAT_IDS
+    ?.split(',')
+    .map(id => id.trim())
+    .filter(Boolean) || [];
+
+  const chatId = ctx.chat?.id?.toString();
+
+  if (!chatId || !allowedIds.includes(chatId)) {
+    await ctx.reply('⛔️ Доступ запрещён.');
+    return;
+  }
+
+  return next();
+});
 
 const stage = new Scenes.Stage<MyContext>([addClientWizard]);
 
