@@ -9,7 +9,13 @@ export async function login(
   console.log(`[AUTH] Logging in: ${email}`);
 
   // Шаг 1 — GET на главную страницу логина
-  const getResponse = await client.get('/ru-kz/niv/users/sign_in');
+  const baseUrl = client.defaults.baseURL || 'https://ais.usvisa-info.com';
+  const loginUrl = `${baseUrl}/ru-kz/niv/users/sign_in`;
+  console.log('[AUTH] Full login URL:', loginUrl);
+
+  const getResponse = await client.get(loginUrl);
+  console.log('[AUTH] GET response status:', getResponse.status);
+  console.log('[AUTH] GET response URL:', getResponse.request?.res?.responseUrl || 'unknown');
   
   if (typeof getResponse.data !== 'string') {
     throw new Error('Unexpected response format from login page');
@@ -29,8 +35,6 @@ export async function login(
   loginData.append('user[password]', password);
   loginData.append('policy_confirmed', '1');
   loginData.append('commit', 'Войти');
-
-  const baseUrl = client.defaults.baseURL || 'https://ais.usvisa-info.com';
 
   const postResponse = await client.post('/ru-kz/niv/users/sign_in', loginData.toString(), {
     headers: {

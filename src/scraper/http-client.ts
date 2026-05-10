@@ -50,6 +50,8 @@ export function createHttpClient(): AxiosInstance {
       httpAgent: agent,
       httpsAgent: agent,
       proxy: false,
+      maxRedirects: 5,
+      validateStatus: (status: number) => status < 500,
       withCredentials: true,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36'
@@ -60,6 +62,8 @@ export function createHttpClient(): AxiosInstance {
   const client = axios.create({
     baseURL,
     jar,
+    maxRedirects: 5,
+    validateStatus: (status: number) => status < 500,
     withCredentials: true,
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36'
