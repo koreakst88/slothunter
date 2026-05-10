@@ -1,5 +1,9 @@
 import 'dotenv/config';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient as createSupabaseClient,
+  type WebSocketLikeConstructor,
+} from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import { Client } from '../monitor/checker';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -9,7 +13,11 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing SUPABASE_URL or SUPABASE_KEY in environment variables');
 }
 
-export const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+export const supabase = createSupabaseClient(supabaseUrl, supabaseKey, {
+  realtime: {
+    transport: WebSocket as unknown as WebSocketLikeConstructor,
+  },
+});
 
 export async function getActiveClients(): Promise<Client[]> {
   const { data, error } = await supabase
@@ -169,4 +177,3 @@ export async function getClientById(clientId: string): Promise<Client | null> {
 
   return data ? (data as Client) : null;
 }
-
