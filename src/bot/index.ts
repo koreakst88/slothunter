@@ -35,9 +35,9 @@ function getFinalResponseUrl(response: AxiosResponse): string {
   return response.request?.res?.responseUrl || 'unknown';
 }
 
-function logHtmlPreview(response: AxiosResponse): void {
+function logHtmlPreview(response: AxiosResponse, label: string): void {
   const html = typeof response.data === 'string' ? response.data : '';
-  console.log('[PARSE] HTML preview:', html.substring(0, 500));
+  console.log(`[PARSE] ${label} HTML preview:`, html.substring(0, 2000));
 }
 
 function findScheduleId(html: string, sourcePath: string): string | null {
@@ -56,20 +56,20 @@ function findScheduleId(html: string, sourcePath: string): string | null {
 
 async function fetchSchedulePage(client: AxiosInstance, baseUrl: string, path: string): Promise<AxiosResponse> {
   const url = `${baseUrl}${path}`;
-  const label = path.endsWith('/groups') ? 'groups' : 'niv';
+  const label = path.endsWith('/manage_groups') ? 'manage_groups' : 'account';
   console.log(`[PARSE] GET ${label} URL:`, url);
 
   const response = await client.get(url);
   console.log(`[PARSE] GET ${label} status:`, response.status);
   console.log('[PARSE] Response URL:', getFinalResponseUrl(response));
-  logHtmlPreview(response);
+  logHtmlPreview(response, label === 'account' ? 'Account' : 'Manage groups');
 
   return response;
 }
 
 async function parseScheduleId(client: AxiosInstance): Promise<string | null> {
   const baseUrl = client.defaults.baseURL || 'https://ais.usvisa-info.com';
-  const paths = ['/ru-kz/niv/groups', '/ru-kz/niv/niv'];
+  const paths = ['/ru-kz/niv/account', '/ru-kz/niv/account/manage_groups'];
 
   for (const path of paths) {
     const response = await fetchSchedulePage(client, baseUrl, path);
