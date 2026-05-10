@@ -1,4 +1,5 @@
 import { Telegraf, Scenes, session, Markup } from 'telegraf';
+import { AxiosInstance, AxiosResponse } from 'axios';
 import { getActiveClients, getAllClients, createClient, updateClientStatus, getClientLogs, getClientById, addLog, updateClientAfterReschedule } from '../db/supabase';
 import { createHttpClient } from '../scraper/http-client';
 import { login } from '../scraper/auth';
@@ -22,6 +23,65 @@ interface WizardState {
 interface MyWizardSession extends Scenes.WizardSessionData {}
 
 interface MyContext extends Scenes.WizardContext<MyWizardSession> {}
+
+const scheduleIdPatterns: RegExp[] = [
+  /\/ru-kz\/niv\/schedule\/(\d+)\/continue_actions/,
+  /\/ru-kz\/niv\/schedule\/(\d+)\/appointment/,
+  /schedule\/(\d+)\//,
+  /"schedule_id["\s]*:["\s]*(\d+)/,
+];
+
+function getFinalResponseUrl(response: AxiosResponse): string {
+  return response.request?.res?.responseUrl || 'unknown';
+}
+
+function logHtmlPreview(response: AxiosResponse): void {
+  const html = typeof response.data === 'string' ? response.data : '';
+  console.log('[PARSE] HTML preview:', html.substring(0, 500));
+}
+
+function findScheduleId(html: string, sourcePath: string): string | null {
+  for (const pattern of scheduleIdPatterns) {
+    const match = html.match(pattern);
+    if (match) {
+      console.log(`[PARSE] Pattern matched on ${sourcePath}:`, pattern.toString());
+      return match[1];
+    }
+
+    console.log(`[PARSE] Pattern did not match on ${sourcePath}:`, pattern.toString());
+  }
+
+  return null;
+}
+
+async function fetchSchedulePage(client: AxiosInstance, baseUrl: string, path: string): Promise<AxiosResponse> {
+  const url = `${baseUrl}${path}`;
+  const label = path.endsWith('/groups') ? 'groups' : 'niv';
+  console.log(`[PARSE] GET ${label} URL:`, url);
+
+  const response = await client.get(url);
+  console.log(`[PARSE] GET ${label} status:`, response.status);
+  console.log('[PARSE] Response URL:', getFinalResponseUrl(response));
+  logHtmlPreview(response);
+
+  return response;
+}
+
+async function parseScheduleId(client: AxiosInstance): Promise<string | null> {
+  const baseUrl = client.defaults.baseURL || 'https://ais.usvisa-info.com';
+  const paths = ['/ru-kz/niv/groups', '/ru-kz/niv/niv'];
+
+  for (const path of paths) {
+    const response = await fetchSchedulePage(client, baseUrl, path);
+    const html = typeof response.data === 'string' ? response.data : '';
+    const scheduleId = findScheduleId(html, path);
+    if (scheduleId) {
+      return scheduleId;
+    }
+  }
+
+  return null;
+}
 
 const addClientWizard = new Scenes.WizardScene<MyContext>(
   'ADD_CLIENT_WIZARD',
@@ -72,16 +132,12 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
         return ctx.scene.leave();
       }
       
-      const nivResponse = await client.get('/ru-kz/niv/niv');
-      const nivHtml = nivResponse.data as string;
-      
-      const scheduleMatch = nivHtml.match(/\/ru-kz\/niv\/schedule\/(\d+)\/continue_actions/);
-      if (!scheduleMatch) {
+      const scheduleId = await parseScheduleId(client);
+      if (!scheduleId) {
         await ctx.reply('❌ Не удалось найти запись на собеседование.\nУбедитесь что аккаунт имеет активную запись.');
         return ctx.scene.leave();
       }
       
-      const scheduleId = scheduleMatch[1];
       state.scheduleId = scheduleId;
       
       const usersResponse = await client.get(`/ru-kz/niv/schedule/${scheduleId}/users`);
