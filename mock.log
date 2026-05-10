@@ -1,0 +1,12 @@
+
+> slothunter@1.0.0 mock
+> ts-node mock-server/index.ts
+
+Mock server is running on port 3001
+[MOCK] GET /ru-kz/niv/users/sign_in — 2026-05-10T04:51:08.987Z
+[MOCK] POST /ru-kz/niv/users/sign_in — 2026-05-10T04:51:10.541Z
+[MOCK] GET /ru-kz/niv/schedule/74233394/appointment/address/134 — 2026-05-10T04:51:10.546Z
+[MOCK] GET /ru-kz/niv/schedule/74233394/appointment/days/134.json?appointments%5Bexpedite%5D=false — 2026-05-10T04:51:11.687Z
+[MOCK] GET /ru-kz/niv/schedule/74233394/appointment/times/134.json?date=2026-08-15&appointments%5Bexpedite%5D=false — 2026-05-10T04:51:11.692Z
+[MOCK] GET /ru-kz/niv/schedule/74233394/appointment/times/134.json?date=2026-08-15&appointments%5Bexpedite%5D=false — 2026-05-10T04:51:11.694Z
+[MOCK] POST /ru-kz/niv/schedule/74233394/appointment — 2026-05-10T04:51:14.726Z

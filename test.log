@@ -1,0 +1,8 @@
+
+> slothunter@1.0.0 test:mock
+> ts-node src/test-mock.ts
+
+[TEST] Starting integration test...
+[TEST] MOCK_MODE: true
+[AUTH] Logging in: test@example.com
+[TEST] ❌ FATAL: Request failed with status code 404

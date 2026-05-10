@@ -1,0 +1,22 @@
+[SLOTHUNTER] Bot started
+[SLOTHUNTER] MOCK_MODE: true
+[SLOTHUNTER] Check interval: 5-8 minutes
+[DB] Fetched 1 active clients
+[SCHEDULER] Processing client: Иванов Иван (00a52d59-4c47-407d-834f-8d14aa39b6c1)
+[AUTH] Logging in: test@example.com
+[AUTH] Login successful, CSRF token obtained
+[CHECKER] Checking client: Иванов Иван
+[SLOTS] Found 3 dates for schedule 74233394
+[CHECKER] isDateSuitable: found=2026-08-15, current=2027-08-15, buffer=2026-07-09, result=true
+[CHECKER] Found suitable date: 2026-08-15
+[SLOTS] Found 4 times for date 2026-08-15
+[CHECKER] Action: reschedule - Date found, rescheduling
+[RESCHEDULE] Attempting reschedule for schedule 74233394
+[SLOTS] Found 4 times for date 2026-08-15
+[RESCHEDULE] Selected date: 2026-08-15, time: 08:00
+[RESCHEDULE] Success: rescheduled to 2026-08-15 08:00
+[DB] Updated client 00a52d59-4c47-407d-834f-8d14aa39b6c1: new date 2026-08-15
+[DB] Log added for client 00a52d59-4c47-407d-834f-8d14aa39b6c1: reschedule
+[NOTIFY] SUCCESS alert for Иванов Иван: 2026-08-15 08:00
+[SCHEDULER] Иванов Иван: rescheduled to 2026-08-15
+[SCHEDULER] Cycle complete. Processed 1 clients.
