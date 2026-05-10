@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { AxiosInstance } from 'axios';
 import { getAvailableDates, getAvailableTimes } from '../scraper/slots';
+import { sendSlotSkippedAlert } from '../bot/notifications';
 
 export interface Client {
   id: string;
@@ -74,6 +75,9 @@ export async function checkClient(
       if (isDateSuitable(d.date, client.current_date, minBufferMonths)) {
         suitableDateStr = d.date;
         break;
+      } else {
+        const reason = 'Дата ближе чем 2 месяца от сегодня';
+        await sendSlotSkippedAlert(client, d.date, reason);
       }
     }
 

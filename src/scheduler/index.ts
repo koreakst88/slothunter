@@ -4,7 +4,16 @@ import { createHttpClient, randomDelay } from '../scraper/http-client';
 import { login } from '../scraper/auth';
 import { checkClient } from '../monitor/checker';
 import { rescheduleAppointment } from '../scraper/reschedule';
-import { sendSuccessAlert, sendNotifyAlert } from '../bot/notifications';
+import {
+  sendSuccessAlert,
+  sendNotifyAlert,
+  sendSlotFoundAlert,
+  sendRescheduleErrorAlert,
+} from '../bot/notifications';
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export async function runMonitoringCycle(): Promise<void> {
   // Шаг 1
@@ -46,23 +55,34 @@ export async function runMonitoringCycle(): Promise<void> {
       await sendNotifyAlert(client, dateFound);
     } else if (checkResult.action === 'reschedule') {
       const dateFound = checkResult.date_found ?? 'unknown_date';
-      const rescheduleResult = await rescheduleAppointment(
-        httpClient, 
-        client.schedule_id, 
-        client.applicant_ids, 
-        dateFound, 
-        csrfToken
-      );
-      
-      if (rescheduleResult.success) {
-        await updateClientAfterReschedule(client.id, rescheduleResult.date, client.attempts_left);
-        await addLog(client.id, 'reschedule', 'success', dateFound, rescheduleResult.date);
-        await sendSuccessAlert(client, rescheduleResult);
-        console.log(`[SCHEDULER] ${client.name}: rescheduled to ${rescheduleResult.date}`);
-      } else {
-        const errorReason = rescheduleResult.error ?? 'Unknown error';
-        await addLog(client.id, 'error', errorReason);
-        console.log(`[SCHEDULER] ${client.name}: reschedule failed — ${errorReason}`);
+      await sendSlotFoundAlert(client, dateFound);
+      await sleep(30000);
+
+      try {
+        const rescheduleResult = await rescheduleAppointment(
+          httpClient, 
+          client.schedule_id, 
+          client.applicant_ids, 
+          dateFound, 
+          csrfToken
+        );
+        
+        if (rescheduleResult.success) {
+          await updateClientAfterReschedule(client.id, rescheduleResult.date, client.attempts_left);
+          await addLog(client.id, 'reschedule', 'success', dateFound, rescheduleResult.date);
+          await sendSuccessAlert(client, rescheduleResult);
+          console.log(`[SCHEDULER] ${client.name}: rescheduled to ${rescheduleResult.date}`);
+        } else {
+          const errorReason = rescheduleResult.error ?? 'Unknown error';
+          await addLog(client.id, 'error', errorReason);
+          await sendRescheduleErrorAlert(client, dateFound, errorReason, client.attempts_left - 1);
+          console.log(`[SCHEDULER] ${client.name}: reschedule failed — ${errorReason}`);
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await addLog(client.id, 'error', errorMessage);
+        await sendRescheduleErrorAlert(client, dateFound, errorMessage, client.attempts_left - 1);
+        console.log(`[SCHEDULER] ${client.name}: reschedule crashed — ${errorMessage}`);
       }
     } else if (checkResult.action === 'error') {
       await addLog(client.id, 'error', checkResult.reason);
