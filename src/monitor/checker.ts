@@ -13,6 +13,7 @@ export interface Client {
   current_date: string; // YYYY-MM-DD
   status: string;
   attempts_left: number;
+  last_checked_at: string | null;
 }
 
 export interface CheckResult {

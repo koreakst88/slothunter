@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { getActiveClients, updateClientStatus, addLog, updateClientAfterReschedule } from '../db/supabase';
+import { getActiveClients, updateClientStatus, addLog, updateClientAfterReschedule, updateLastChecked } from '../db/supabase';
 import { createHttpClient, randomDelay } from '../scraper/http-client';
 import { login } from '../scraper/auth';
 import { checkClient } from '../monitor/checker';
@@ -89,6 +89,7 @@ export async function runMonitoringCycle(): Promise<void> {
       console.log(`[SCHEDULER] ${client.name}: error — ${checkResult.reason}`);
     }
 
+    await updateLastChecked(client.id);
     processedCount++;
     
     // Шаг 2.6 — randomDelay между клиентами

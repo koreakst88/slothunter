@@ -12,7 +12,8 @@ const testClient: Client = {
   applicant_ids: ['88823596', '88823645'],
   current_date: '2027-08-15',
   status: 'active',
-  attempts_left: 3
+  attempts_left: 3,
+  last_checked_at: null
 };
 
 async function runTest() {
@@ -43,11 +44,13 @@ async function runTest() {
 
     // Шаг 5
     console.log('[TEST] Integration test complete.');
-  } catch (error: any) {
-    console.error(`[TEST] ❌ FATAL: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[TEST] ❌ FATAL: ${errorMessage}`);
   }
 }
 
-runTest().catch((error: any) => {
-  console.error(`[TEST] ❌ FATAL: ${error.message}`);
+runTest().catch((error: unknown) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[TEST] ❌ FATAL: ${errorMessage}`);
 });

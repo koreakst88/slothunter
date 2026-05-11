@@ -287,16 +287,67 @@ bot.command('start', (ctx) => {
   );
 });
 
+function formatTimeAgo(dateStr: string): string {
+  const timestamp = new Date(dateStr).getTime();
+  if (Number.isNaN(timestamp)) {
+    return 'неизвестно';
+  }
+
+  const diffMs = Date.now() - timestamp;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return 'только что';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} минут назад`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} часов назад`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} дней назад`;
+}
+
+function isMonitoringStale(dateStr: string): boolean {
+  const timestamp = new Date(dateStr).getTime();
+  if (Number.isNaN(timestamp)) {
+    return false;
+  }
+
+  return Date.now() - timestamp > 15 * 60 * 1000;
+}
+
 bot.command('status', async (ctx) => {
   try {
     const clients = await getActiveClients();
     const mode = process.env.MOCK_MODE === 'true' ? 'MOCK' : 'LIVE';
-    
-    await ctx.reply(
+
+    const clientLines = clients.map(client => {
+      const lastCheckedLine = client.last_checked_at
+        ? `🕐 Последняя проверка: ${formatTimeAgo(client.last_checked_at)}`
+        : '⏳ Ещё не проверялся';
+      const staleWarning = client.last_checked_at && isMonitoringStale(client.last_checked_at)
+        ? '\n⚠️ Мониторинг мог зависнуть!'
+        : '';
+
+      return `👤 ${client.name}\n` +
+        `${lastCheckedLine}\n` +
+        `📅 Текущая запись: ${client.current_date || 'нет данных'}` +
+        `${staleWarning}`;
+    });
+
+    const message =
       `📊 Статус системы SlotHunter\n\n` +
       `Режим: ${mode}\n` +
-      `Активных клиентов: ${clients.length}`
-    );
+      `Активных клиентов: ${clients.length}` +
+      (clientLines.length > 0 ? `\n\n${clientLines.join('\n\n')}` : '');
+
+    await ctx.reply(message);
   } catch (error) {
     console.error('[BOT] Error in /status:', error);
     await ctx.reply('❌ Ошибка подключения к базе данных');

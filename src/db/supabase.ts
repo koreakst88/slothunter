@@ -71,6 +71,19 @@ export async function updateClientStatus(
   console.log(`[DB] Status updated for ${clientId}: ${status}`);
 }
 
+export async function updateLastChecked(
+  clientId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .update({ last_checked_at: new Date().toISOString() })
+    .eq('id', clientId);
+
+  if (error) {
+    throw new Error(`Failed to update last checked timestamp: ${error.message}`);
+  }
+}
+
 export async function addLog(
   clientId: string,
   action: string,

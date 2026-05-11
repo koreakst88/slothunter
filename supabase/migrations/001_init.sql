@@ -8,6 +8,7 @@ CREATE TABLE clients (
     "current_date" date,
     status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'done', 'blocked')),
     attempts_left integer NOT NULL DEFAULT 3,
+    last_checked_at timestamptz DEFAULT NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
