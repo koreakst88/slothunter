@@ -534,8 +534,14 @@ bot.action(/^skip_reschedule_(.+)$/, async (ctx) => {
 });
 
 export async function startBot(): Promise<void> {
+  const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN || '';
+  const WEBHOOK_PORT = parseInt(process.env.PORT || '3000', 10);
+
   await bot.launch({
-    dropPendingUpdates: true
+    webhook: {
+      domain: WEBHOOK_DOMAIN,
+      port: WEBHOOK_PORT,
+    }
   });
   console.log('[BOT] Telegram bot started');
   
