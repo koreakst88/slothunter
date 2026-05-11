@@ -322,6 +322,14 @@ function isMonitoringStale(dateStr: string): boolean {
   return Date.now() - timestamp > 15 * 60 * 1000;
 }
 
+function formatCurrentAppointmentDate(currentDate: string | null): string {
+  if (!currentDate || currentDate === '2099-01-01') {
+    return 'нет данных';
+  }
+
+  return currentDate;
+}
+
 bot.command('status', async (ctx) => {
   try {
     const clients = await getActiveClients();
@@ -337,7 +345,7 @@ bot.command('status', async (ctx) => {
 
       return `👤 ${client.name}\n` +
         `${lastCheckedLine}\n` +
-        `📅 Текущая запись: ${client.current_date || 'нет данных'}` +
+        `📅 Текущая запись: ${formatCurrentAppointmentDate(client.current_date)}` +
         `${staleWarning}`;
     });
 
