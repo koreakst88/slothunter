@@ -28,15 +28,8 @@ async function executeCycle(withDelay: boolean) {
   }
 }
 
-async function main(): Promise<void> {
-  console.log('[SLOTHUNTER] Bot started');
-  console.log(`[SLOTHUNTER] MOCK_MODE: ${process.env.MOCK_MODE}`);
-  console.log(`[SLOTHUNTER] Check interval: ${MIN_MINUTES}-${MAX_MINUTES} minutes`);
-
-  await startBot();
-
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+function startScheduler(): void {
+  console.log('[SCHEDULER] Started at:', new Date().toISOString());
 
   // Запустить первый цикл сразу при старте не дожидаясь cron
   executeCycle(false);
@@ -47,6 +40,21 @@ async function main(): Promise<void> {
     // Первая вошедшая сюда минута запустит задержку на 5-8 минут, а остальные будут пропущены.
     executeCycle(true);
   });
+
+  console.log('[SCHEDULER] Cron job initialized');
+}
+
+async function main(): Promise<void> {
+  console.log('[SLOTHUNTER] Bot started');
+  console.log(`[SLOTHUNTER] MOCK_MODE: ${process.env.MOCK_MODE}`);
+  console.log(`[SLOTHUNTER] Check interval: ${MIN_MINUTES}-${MAX_MINUTES} minutes`);
+
+  startScheduler();
+
+  await startBot();
+
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
 
 main().catch((error: unknown) => {
