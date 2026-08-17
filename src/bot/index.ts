@@ -115,6 +115,25 @@ async function parseScheduleContext(client: AxiosInstance): Promise<ScheduleCont
   return null;
 }
 
+async function loadAppointmentForApplicants(
+  client: AxiosInstance,
+  scheduleId: string,
+  applicantIds: string[]
+): Promise<void> {
+  const params = new URLSearchParams();
+  for (const applicantId of applicantIds) {
+    params.append('applicants[]', applicantId);
+  }
+  params.append('commit', 'Continue');
+  params.append('confirmed_limit_message', '1');
+
+  const url = `/ru-kz/niv/schedule/${scheduleId}/appointment?${params.toString()}`;
+  const response = await client.get(url);
+  console.log('[PARSE] GET appointment with applicants status:', response.status);
+  console.log('[PARSE] Appointment applicants response URL:', getFinalResponseUrl(response));
+  console.log('[PARSE] Appointment applicants count:', applicantIds.length);
+}
+
 async function fetchApplicantIdsFromSchedulePages(
   client: AxiosInstance,
   scheduleId: string
@@ -138,6 +157,7 @@ async function fetchApplicantIdsFromSchedulePages(
 
     const applicantIds = extractApplicantIds(html);
     if (applicantIds.length > 0) {
+      await loadAppointmentForApplicants(client, scheduleId, applicantIds);
       return applicantIds;
     }
   }
@@ -206,6 +226,10 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
       const applicantIds = scheduleContext.applicantIds.length > 0
         ? scheduleContext.applicantIds
         : await fetchApplicantIdsFromSchedulePages(client, scheduleId);
+
+      if (scheduleContext.applicantIds.length > 0) {
+        await loadAppointmentForApplicants(client, scheduleId, applicantIds);
+      }
 
       if (applicantIds.length === 0) {
         console.error('[PARSE] No applicant IDs found on group or schedule pages');
