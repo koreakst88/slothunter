@@ -3,9 +3,11 @@ import axios, { AxiosInstance } from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
 import { createCookieAgent } from 'http-cookie-agent/http';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 import { CookieJar } from 'tough-cookie';
 
 const CookieHttpsProxyAgent = createCookieAgent(HttpsProxyAgent);
+const CookieSocksProxyAgent = createCookieAgent(SocksProxyAgent);
 let hasLoggedProxyConfiguration = false;
 
 function getProxyHost(proxyUrl: string): string {
@@ -27,6 +29,16 @@ function logProxyConfiguration(proxyUrl: string | undefined): void {
   hasLoggedProxyConfiguration = true;
 }
 
+function createProxyAgent(proxyUrl: string, jar: CookieJar) {
+  const protocol = new URL(proxyUrl).protocol;
+
+  if (protocol.startsWith('socks')) {
+    return new CookieSocksProxyAgent(proxyUrl, { cookies: { jar } });
+  }
+
+  return new CookieHttpsProxyAgent(proxyUrl, { cookies: { jar } });
+}
+
 /**
  * Создаёт изолированный HTTP клиент с собственным хранилищем cookies (CookieJar).
  */
@@ -41,9 +53,7 @@ export function createHttpClient(): AxiosInstance {
   logProxyConfiguration(proxyUrl);
 
   if (proxyUrl) {
-    const agent = new CookieHttpsProxyAgent(proxyUrl, {
-      cookies: { jar },
-    });
+    const agent = createProxyAgent(proxyUrl, jar);
 
     return axios.create({
       baseURL,
