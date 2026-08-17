@@ -115,17 +115,29 @@ async function parseScheduleContext(client: AxiosInstance): Promise<ScheduleCont
   return null;
 }
 
-async function fetchApplicantIdsFromUsersPage(
+async function fetchApplicantIdsFromSchedulePages(
   client: AxiosInstance,
   scheduleId: string
 ): Promise<string[]> {
-  const path = `/ru-kz/niv/schedule/${scheduleId}/users`;
-  const response = await client.get(path);
-  const html = typeof response.data === 'string' ? response.data : '';
+  const pages = [
+    { label: 'continue actions', path: `/ru-kz/niv/schedule/${scheduleId}/continue_actions` },
+    { label: 'appointment', path: `/ru-kz/niv/schedule/${scheduleId}/appointment` },
+  ];
 
-  console.log('[PARSE] GET users status:', response.status);
-  console.log('[PARSE] Users response URL:', getFinalResponseUrl(response));
-  return extractApplicantIds(html);
+  for (const page of pages) {
+    const response = await client.get(page.path);
+    const html = typeof response.data === 'string' ? response.data : '';
+
+    console.log(`[PARSE] GET ${page.label} status:`, response.status);
+    console.log(`[PARSE] ${page.label} response URL:`, getFinalResponseUrl(response));
+
+    const applicantIds = extractApplicantIds(html);
+    if (applicantIds.length > 0) {
+      return applicantIds;
+    }
+  }
+
+  return [];
 }
 
 const addClientWizard = new Scenes.WizardScene<MyContext>(
@@ -188,10 +200,10 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
 
       const applicantIds = scheduleContext.applicantIds.length > 0
         ? scheduleContext.applicantIds
-        : await fetchApplicantIdsFromUsersPage(client, scheduleId);
+        : await fetchApplicantIdsFromSchedulePages(client, scheduleId);
 
       if (applicantIds.length === 0) {
-        console.error('[PARSE] No applicant IDs found on group or users pages');
+        console.error('[PARSE] No applicant IDs found on group or schedule pages');
         await ctx.reply(
           '❌ Не удалось определить заявителей в аккаунте.\n' +
           'Проверьте, что аккаунт содержит активную группу, и попробуйте ещё раз.'
