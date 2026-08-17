@@ -54,6 +54,29 @@ function findScheduleId(html: string, sourcePath: string): string | null {
   return null;
 }
 
+function extractApplicantIds(html: string): string[] {
+  const ids = new Set<string>();
+  const patterns: RegExp[] = [
+    /name=["']applicant_id(?:\[\])?["'][^>]*value=["'](\d+)["']/gi,
+    /value=["'](\d+)["'][^>]*name=["']applicant_id(?:\[\])?["']/gi,
+    /data-applicant-id=["'](\d+)["']/gi,
+    /(?:href|action)=["'][^"']*\/users\/(\d+)(?:\/|["'])/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) {
+      const id = match[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  const result = Array.from(ids);
+  console.log('[PARSE] Applicant IDs found:', result.length, result);
+  return result;
+}
+
 async function fetchSchedulePage(client: AxiosInstance, baseUrl: string, path: string): Promise<AxiosResponse> {
   const url = `${baseUrl}${path}`;
   const label = path.endsWith('/manage_groups') ? 'manage_groups' : 'account';
@@ -141,28 +164,26 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
       state.scheduleId = scheduleId;
       
       const usersResponse = await client.get(`/ru-kz/niv/schedule/${scheduleId}/users`);
-      const usersHtml = usersResponse.data as string;
-      
-      const allIds = new Set<string>();
-      for (const m of Array.from(usersHtml.matchAll(/applicant_id.*?(\d+)/g))) allIds.add(m[1]);
-      for (const m of Array.from(usersHtml.matchAll(/name="[^\"]*applicant[^\"]*"[^>]*value="(\d+)"/g))) allIds.add(m[1]);
-      for (const m of Array.from(usersHtml.matchAll(/value="(\d+)"[^>]*name="[^\"]*applicant[^\"]*"/g))) allIds.add(m[1]);
-      for (const m of Array.from(usersHtml.matchAll(/\/users\/(\d+)\/edit/g))) allIds.add(m[1]);
+      const usersHtml = typeof usersResponse.data === 'string' ? usersResponse.data : '';
+      const applicantIds = extractApplicantIds(usersHtml);
 
-      let finalIds = Array.from(allIds);
-      if (finalIds.length === 0) {
-        // Fallback for MOCK tests or different layout
-        finalIds = ['1'];
+      if (applicantIds.length === 0) {
+        console.error('[PARSE] No applicant IDs found on users page');
+        await ctx.reply(
+          '❌ Не удалось определить заявителей в аккаунте.\n' +
+          'Проверьте, что аккаунт содержит активную группу, и попробуйте ещё раз.'
+        );
+        return ctx.scene.leave();
       }
-      
-      state.applicantIds = finalIds;
+
+      state.applicantIds = applicantIds;
       
       await ctx.reply(
         `✅ Данные получены!\n\n` +
         `👤 Имя: ${state.name}\n` +
         `📧 Email: ${state.email}\n` +
         `🔑 Schedule ID: ${scheduleId}\n` +
-        `👥 Заявителей: ${finalIds.length}`
+        `👥 Заявителей: ${applicantIds.length}`
       );
 
       await ctx.reply(
