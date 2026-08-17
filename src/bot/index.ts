@@ -20,6 +20,11 @@ interface WizardState {
   attemptsLeft?: number;
 }
 
+interface ScheduleContext {
+  scheduleId: string;
+  applicantIds: string[];
+}
+
 interface MyWizardSession extends Scenes.WizardSessionData {}
 
 interface MyContext extends Scenes.WizardContext<MyWizardSession> {}
@@ -59,8 +64,12 @@ function extractApplicantIds(html: string): string[] {
   const patterns: RegExp[] = [
     /name=["']applicant_id(?:\[\])?["'][^>]*value=["'](\d+)["']/gi,
     /value=["'](\d+)["'][^>]*name=["']applicant_id(?:\[\])?["']/gi,
+    /name=["'][^"']*applicant[^"']*["'][^>]*value=["'](\d+)["']/gi,
+    /value=["'](\d+)["'][^>]*name=["'][^"']*applicant[^"']*["']/gi,
     /data-applicant-id=["'](\d+)["']/gi,
     /(?:href|action)=["'][^"']*\/users\/(\d+)(?:\/|["'])/gi,
+    /[?&]applicants?(?:%5B%5D|\[\])=(\d+)/gi,
+    /["']applicant_id["']\s*[:=]\s*["']?(\d+)/gi,
   ];
 
   for (const pattern of patterns) {
@@ -90,7 +99,7 @@ async function fetchSchedulePage(client: AxiosInstance, baseUrl: string, path: s
   return response;
 }
 
-async function parseScheduleId(client: AxiosInstance): Promise<string | null> {
+async function parseScheduleContext(client: AxiosInstance): Promise<ScheduleContext | null> {
   const baseUrl = client.defaults.baseURL || 'https://ais.usvisa-info.com';
   const paths = ['/ru-kz/niv/account', '/ru-kz/niv/account/manage_groups'];
 
@@ -99,11 +108,24 @@ async function parseScheduleId(client: AxiosInstance): Promise<string | null> {
     const html = typeof response.data === 'string' ? response.data : '';
     const scheduleId = findScheduleId(html, path);
     if (scheduleId) {
-      return scheduleId;
+      return { scheduleId, applicantIds: extractApplicantIds(html) };
     }
   }
 
   return null;
+}
+
+async function fetchApplicantIdsFromUsersPage(
+  client: AxiosInstance,
+  scheduleId: string
+): Promise<string[]> {
+  const path = `/ru-kz/niv/schedule/${scheduleId}/users`;
+  const response = await client.get(path);
+  const html = typeof response.data === 'string' ? response.data : '';
+
+  console.log('[PARSE] GET users status:', response.status);
+  console.log('[PARSE] Users response URL:', getFinalResponseUrl(response));
+  return extractApplicantIds(html);
 }
 
 const addClientWizard = new Scenes.WizardScene<MyContext>(
@@ -155,20 +177,21 @@ const addClientWizard = new Scenes.WizardScene<MyContext>(
         return ctx.scene.leave();
       }
       
-      const scheduleId = await parseScheduleId(client);
-      if (!scheduleId) {
+      const scheduleContext = await parseScheduleContext(client);
+      if (!scheduleContext) {
         await ctx.reply('❌ Не удалось найти запись на собеседование.\nУбедитесь что аккаунт имеет активную запись.');
         return ctx.scene.leave();
       }
       
+      const { scheduleId } = scheduleContext;
       state.scheduleId = scheduleId;
-      
-      const usersResponse = await client.get(`/ru-kz/niv/schedule/${scheduleId}/users`);
-      const usersHtml = typeof usersResponse.data === 'string' ? usersResponse.data : '';
-      const applicantIds = extractApplicantIds(usersHtml);
+
+      const applicantIds = scheduleContext.applicantIds.length > 0
+        ? scheduleContext.applicantIds
+        : await fetchApplicantIdsFromUsersPage(client, scheduleId);
 
       if (applicantIds.length === 0) {
-        console.error('[PARSE] No applicant IDs found on users page');
+        console.error('[PARSE] No applicant IDs found on group or users pages');
         await ctx.reply(
           '❌ Не удалось определить заявителей в аккаунте.\n' +
           'Проверьте, что аккаунт содержит активную группу, и попробуйте ещё раз.'
