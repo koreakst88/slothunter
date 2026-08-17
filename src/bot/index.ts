@@ -122,10 +122,15 @@ async function fetchApplicantIdsFromSchedulePages(
   const pages = [
     { label: 'continue actions', path: `/ru-kz/niv/schedule/${scheduleId}/continue_actions` },
     { label: 'appointment', path: `/ru-kz/niv/schedule/${scheduleId}/appointment` },
+    {
+      label: 'appointment applicants',
+      path: `/ru-kz/niv/schedule/${scheduleId}/appointment`,
+      params: { commit: 'Continue', confirmed_limit_message: '1' },
+    },
   ];
 
   for (const page of pages) {
-    const response = await client.get(page.path);
+    const response = await client.get(page.path, page.params ? { params: page.params } : undefined);
     const html = typeof response.data === 'string' ? response.data : '';
 
     console.log(`[PARSE] GET ${page.label} status:`, response.status);
